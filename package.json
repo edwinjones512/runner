@@ -1,0 +1,20 @@
+{
+  "name": "fox-dash",
+  "version": "1.0.0",
+  "description": "Cheerful cartoon side-scrolling endless runner. Play as a cute fox collecting coins through vibrant low-poly landscapes. Built with Three.js.",
+  "type": "module",
+  "main": "server.cjs",
+  "scripts": {
+    "dev": "node --watch server.cjs",
+    "start": "node server.cjs",
+    "build": "node scripts/build.js",
+    "preview": "npx serve dist -p 4173"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "three": "^0.184.0"
+  },
+  "keywords": ["fox", "runner", "endless-runner", "three.js", "3d", "game", "cartoon", "side-scroller"],
+  "author": "edwin",
+  "license": "MIT"
+}

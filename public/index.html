@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FOX DASH • Endless Runner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Three.js via import map (matches installed version) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.184.0/build/three.module.min.js"
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;family=Comic+Neue:wght@700&amp;display=swap');
+
+    :root {
+      --fox-orange: #f97316;
+      --grass-green: #22c55e;
+      --sky-blue: #60a5fa;
+      --coin-gold: #facc15;
+    }
+
+    body {
+      font-family: 'Inter', system_ui, sans-serif;
+    }
+
+    .display-font {
+      font-family: 'Space Grotesk', 'Inter', system_ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .cartoon-font {
+      font-family: 'Comic Neue', 'Space Grotesk', cursive;
+      font-weight: 700;
+    }
+
+    .game-bg {
+      background: linear-gradient(180deg, #bae6fd 0%, #67e8f9 40%, #4ade80 100%);
+    }
+
+    .fox-orange {
+      color: #f97316;
+    }
+
+    .section-header {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+    }
+
+    #game-canvas {
+      display: block;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4),
+                  0 10px 10px -6px rgb(0 0 0 / 0.3);
+      touch-action: none;
+    }
+
+    .ui-panel {
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+
+    .score-text {
+      font-family: 'Space Grotesk', system_ui, sans-serif;
+      font-feature-settings: "tnum";
+    }
+
+    .cartoon-shadow {
+      filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.15));
+    }
+
+    .obstacle-log { filter: drop-shadow(2px 4px 3px rgb(0 0 0 / 0.3)); }
+
+    /* Cute start button */
+    .start-btn {
+      transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                  box-shadow 0.2s ease;
+    }
+    .start-btn:active {
+      transform: scale(0.94) translateY(1px);
+    }
+
+    .stat-pill {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(163, 163, 172, 0.3);
+    }
+
+    .floating {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .coin-glow {
+      animation: coin-glow-anim 1.6s ease-in-out infinite;
+    }
+
+    @keyframes coin-glow-anim {
+      0%, 100% { filter: brightness(1) drop-shadow(0 0 4px #facc15); }
+      50% { filter: brightness(1.2) drop-shadow(0 0 12px #facc15); }
+    }
+
+    .game-over-modal {
+      animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .low-poly {
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body class="bg-[#0a1729] text-white overflow-hidden select-none">
+  <!-- START / LANDING SCREEN -->
+  <div id="start-screen" class="min-h-screen flex items-center justify-center game-bg">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <!-- Hero Image -->
+      <div class="flex justify-center mb-4">
+        <div class="relative">
+          <img 
+            src="images/fox-dash-title.jpg" 
+            alt="Cute cartoon fox running through bright hills with coins and logs"
+            class="max-w-[520px] w-full h-auto rounded-3xl shadow-2xl border-[6px] border-white/70 cartoon-shadow"
+            style="max-height: 260px; object-fit: cover;"
+          />
+          <div class="absolute -bottom-3 -right-3 bg-white text-[#0a1729] px-4 py-1 rounded-2xl text-sm font-bold shadow-lg flex items-center gap-x-2 border border-white/70">
+            <i class="fa-solid fa-running"></i>
+            <span class="tracking-wider">ENDLESS RUNNER</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <h1 class="text-[72px] leading-[64px] font-black tracking-tighter display-font">
+          <span class="text-[#0a1729]">FOX</span><span class="text-[#f97316]">DASH</span>
+        </h1>
+        <p class="text-xl text-[#0a1729]/70 -mt-1 tracking-tight">A cheerful 3D endless runner</p>
+      </div>
+
+      <!-- Big Play Button -->
+      <button id="start-btn"
+              class="start-btn mx-auto mt-6 mb-8 group flex items-center justify-center gap-x-3 px-14 py-5 rounded-3xl bg-[#0a1729] hover:bg-black active:scale-[0.985] text-white text-2xl font-bold shadow-xl shadow-black/30 border-2 border-white/20">
+        <i class="fa-solid fa-play mr-1 group-active:scale-95 transition"></i>
+        <span>START RUNNING</span>
+      </button>
+
+      <!-- Instructions -->
+      <div class="max-w-lg mx-auto">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div class="stat-pill rounded-2xl px-4 py-3 text-[#0a1729]">
+            <div class="flex items-center justify-center gap-x-2 text-[#f97316]">
+              <i class="fa-solid fa-space-shuttle fa-fw"></i>
+              <span class="font-semibold">SPACE / TAP</span>
+            </div>
+            <div class="text-xs text-[#0a1729]/60 mt-0.5">JUMP over obstacles</div>
+          </div>
+          <div class="stat-pill rounded-2xl px-4 py-3 text-[#0a1729]">
+            <div class="flex items-center justify-center gap-x-2 text-[#0a1729]">
+              <i class="fa-solid fa-arrow-down fa-fw"></i>
+              <span class="font-semibold">↓ / SWIPE DOWN</span>
+            </div>
+            <div class="text-xs text-[#0a1729]/60 mt-0.5">SLIDE under branches</div>
+          </div>
+          <div class="stat-pill rounded-2xl px-4 py-3 text-[#0a1729]">
+            <div class="flex items-center justify-center gap-x-2 text-[#eab308]">
+              <i class="fa-solid fa-coins fa-fw"></i>
+              <span class="font-semibold">COLLECT COINS</span>
+            </div>
+            <div class="text-xs text-[#0a1729]/60 mt-0.5">For bonus points!</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 text-[#0a1729]/40 text-xs tracking-[1.5px] flex items-center justify-center gap-x-2">
+        <div class="h-px w-8 bg-[#0a1729]/20"></div>
+        <span>LOW-POLY CARTOON • MADE WITH THREE.JS</span>
+        <div class="h-px w-8 bg-[#0a1729]/20"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="hidden min-h-screen bg-[#0a1729]">
+    <!-- Top HUD -->
+    <div class="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+      <div class="max-w-[1100px] mx-auto px-4 pt-4 flex items-start justify-between">
+        <!-- Score -->
+        <div class="ui-panel pointer-events-auto rounded-2xl px-5 py-2.5 shadow-xl flex items-center gap-x-6 text-[#0a1729]">
+          <div>
+            <div class="section-header text-emerald-600 tracking-widest">DISTANCE</div>
+            <div id="distance" class="score-text text-4xl font-black tabular-nums tracking-tighter leading-none">0000</div>
+          </div>
+          <div class="w-px h-9 bg-black/10"></div>
+          <div>
+            <div class="section-header text-amber-500 tracking-widest flex items-center gap-x-1">
+              <i class="fa-solid fa-coins text-sm"></i>
+              <span>COINS</span>
+            </div>
+            <div id="coins" class="score-text text-4xl font-black tabular-nums tracking-tighter leading-none text-amber-500">000</div>
+          </div>
+        </div>
+
+        <!-- Speed indicator -->
+        <div class="ui-panel pointer-events-auto rounded-2xl px-4 py-2 shadow-xl flex items-center gap-x-2 text-[#0a1729]">
+          <i class="fa-solid fa-tachometer-alt text-emerald-600"></i>
+          <div class="text-sm font-semibold">
+            <span id="speed-value">1.0</span><span class="text-emerald-600/70 text-xs font-normal">×</span>
+          </div>
+          <div class="text-[10px] text-emerald-600/70 font-medium tracking-wider">SPEED</div>
+        </div>
+
+        <!-- Controls hint -->
+        <div class="hidden md:flex items-center gap-x-2 text-xs text-white/70 bg-black/30 backdrop-blur px-3 py-1.5 rounded-2xl pointer-events-auto">
+          <span class="font-medium">SPACE</span> jump • <span class="font-medium">↓</span> slide
+        </div>
+      </div>
+    </div>
+
+    <!-- Three.js Canvas Container -->
+    <div class="flex items-center justify-center min-h-screen pt-16 pb-8 px-4">
+      <div class="relative">
+        <canvas id="game-canvas" width="1100" height="620" class="bg-[#67e8f9]"></canvas>
+        
+        <!-- Pause button -->
+        <button id="pause-btn"
+                class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-2xl bg-white/90 hover:bg-white text-[#0a1729] shadow-lg border border-white/60 active:scale-95 transition">
+          <i class="fa-solid fa-pause text-lg"></i>
+        </button>
+
+        <!-- Mobile controls hint -->
+        <div id="mobile-hint" class="md:hidden absolute -bottom-10 left-1/2 -translate-x-1/2 text-center text-white/60 text-xs tracking-wider">
+          TAP = JUMP &nbsp;•&nbsp; SWIPE DOWN = SLIDE
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER OVERLAY -->
+  <div id="game-over" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div class="game-over-modal ui-panel w-full max-w-md mx-4 rounded-3xl p-8 text-[#0a1729] shadow-2xl border border-white/70">
+      <div class="text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-100 mb-4">
+          <i class="fa-solid fa-face-frown text-4xl text-red-500"></i>
+        </div>
+
+        <h2 class="text-5xl font-black tracking-tighter mb-1">OOPS!</h2>
+        <p class="text-xl text-[#0a1729]/70 mb-6">The fox tripped!</p>
+
+        <!-- Final Stats -->
+        <div class="grid grid-cols-2 gap-3 mb-8">
+          <div class="bg-white rounded-2xl p-4 border border-black/5">
+            <div class="text-xs tracking-widest text-emerald-600 font-bold">DISTANCE</div>
+            <div id="final-distance" class="score-text text-5xl font-black tabular-nums tracking-tighter text-emerald-600">1240</div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-black/5">
+            <div class="text-xs tracking-widest text-amber-500 font-bold">COINS</div>
+            <div id="final-coins" class="score-text text-5xl font-black tabular-nums tracking-tighter text-amber-500">87</div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <div class="text-xs uppercase tracking-[2px] text-black/50 mb-1">TOTAL SCORE</div>
+          <div id="final-score" class="text-7xl font-black tracking-[-3.5px] tabular-nums text-[#0a1729]">1840</div>
+        </div>
+
+        <div id="new-highscore" class="hidden mb-4 text-emerald-500 font-bold text-sm tracking-wider flex items-center justify-center gap-x-1">
+          <i class="fa-solid fa-trophy"></i>
+          <span>NEW BEST RUN!</span>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3">
+          <button id="restart-btn"
+                  class="flex-1 py-4 rounded-2xl bg-[#f97316] hover:bg-orange-600 active:bg-orange-700 text-white font-extrabold text-xl shadow-inner flex items-center justify-center gap-x-2 transition-all">
+            <i class="fa-solid fa-redo"></i>
+            <span>RUN AGAIN</span>
+          </button>
+          <button id="menu-btn"
+                  class="flex-1 py-4 rounded-2xl bg-white hover:bg-zinc-100 active:bg-zinc-200 border border-black/10 text-[#0a1729] font-bold text-xl flex items-center justify-center gap-x-2 transition-all">
+            <i class="fa-solid fa-home"></i>
+            <span>MENU</span>
+          </button>
+        </div>
+
+        <div class="text-[10px] text-black/40 mt-5 tracking-widest">THANKS FOR PLAYING • FOX DASH</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ==================== TAILWIND + GLOBALS ====================
+    function initTailwind() {
+      document.documentElement.style.setProperty('--accent', '#f97316');
+    }
+
+    // ==================== GAME CONSTANTS ====================
+    const GAME_WIDTH = 1100;
+    const GAME_HEIGHT = 620;
+    const GROUND_Y = 0.6;
+    const FOX_X = -3.8;          // fox stays at this world X (world scrolls left)
+    const GRAVITY = -22;
+    const JUMP_VELOCITY = 11.5;
+    const SLIDE_DURATION = 680;  // ms
+
+    // ==================== STATE ====================
+    let scene, camera, renderer, clock;
+    let fox, foxLegs = [], foxTail, foxHead, foxEarL, foxEarR;
+    let groundChunks = [];
+    let obstacles = [];
+    let coins = [];
+    let particles = [];
+    let bgLayers = { far: [], mid: [], near: [] };
+
+    let gameState = 'start'; // 'start' | 'playing' | 'paused' | 'gameover'
+    let speed = 6.5;           // base world scroll speed
+    let baseSpeed = 6.5;
+    let distance = 0;
+    let coinCount = 0;
+    let lastSpawnX = 18;
+    let nextSpawnDistance = 12;
+    let isJumping = false;
+    let isSliding = false;
+    let slideUntil = 0;
+    let foxY = GROUND_Y;
+    let foxVY = 0;
+    let runCycle = 0;
+    let highScore = parseInt(localStorage.getItem('foxDashHighScore') || '0');
+
+    let keys = {};
+    let touchStartY = null;
+    let lastTime = 0;
+
+    // ==================== UTILITIES ====================
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+    function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+    // Simple AABB collision helper (for side view)
+    function intersects(a, b) {
+      return !(
+        a.maxX < b.minX || a.minX > b.maxX ||
+        a.maxY < b.minY || a.minY > b.maxY
+      );
+    }
+
+    function getFoxBounds() {
+      const h = isSliding ? 1.1 : 2.1;
+      return {
+        minX: FOX_X - 0.9,
+        maxX: FOX_X + 0.7,
+        minY: foxY - 0.6,
+        maxY: foxY + (h * 0.5)
+      };
+    }
+
+    // ==================== 3D MODEL CREATORS ====================
+
+    function createFox() {
+      const group = new THREE.Group();
+      group.position.set(FOX_X, GROUND_Y, 0);
+
+      const orange = new THREE.MeshPhongMaterial({ color: 0xf97316, shininess: 18, flatShading: true });
+      const white = new THREE.MeshPhongMaterial({ color: 0xfefce8, shininess: 12, flatShading: true });
+      const dark = new THREE.MeshPhongMaterial({ color: 0x3f2a1f, shininess: 10, flatShading: true });
+      const noseMat = new THREE.MeshPhongMaterial({ color: 0x1f2937, shininess: 4 });
+
+      // Body (slightly squashed sphere + box for low-poly feel)
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.92, 7, 7),
+        orange
+      );
+      body.scale.set(1.05, 0.78, 0.95);
+      body.position.y = 0.65;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      group.add(body);
+
+      // White chest / belly patch
+      const belly = new THREE.Mesh(
+        new THREE.SphereGeometry(0.68, 6, 6),
+        white
+      );
+      belly.scale.set(0.92, 0.95, 0.7);
+      belly.position.set(0, 0.58, 0.48);
+      group.add(belly);
+
+      // Head
+      foxHead = new THREE.Mesh(
+        new THREE.SphereGeometry(0.66, 8, 7),
+        orange
+      );
+      foxHead.position.set(0.95, 1.35, 0);
+      foxHead.castShadow = true;
+      foxHead.receiveShadow = true;
+      group.add(foxHead);
+
+      // Snout
+      const snout = new THREE.Mesh(
+        new THREE.ConeGeometry(0.32, 0.65, 5),
+        white
+      );
+      snout.rotation.z = -Math.PI * 0.5;
+      snout.position.set(1.48, 1.22, 0);
+      group.add(snout);
+
+      // Nose
+      const nose = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 5, 4),
+        noseMat
+      );
+      nose.position.set(1.72, 1.22, 0);
+      group.add(nose);
+
+      // Eyes (big cute cartoon eyes)
+      const eyeMat = new THREE.MeshPhongMaterial({ color: 0x1e2937 });
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.17, 5, 5), eyeMat);
+      eyeL.position.set(1.12, 1.55, 0.42);
+      group.add(eyeL);
+      const eyeR = eyeL.clone();
+      eyeR.position.z = -0.42;
+      group.add(eyeR);
+
+      // Eye shine dots (super cute)
+      const shineMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+      const shineL = new THREE.Mesh(new THREE.SphereGeometry(0.065, 4, 4), shineMat);
+      shineL.position.set(1.17, 1.62, 0.47);
+      group.add(shineL);
+      const shineR = shineL.clone();
+      shineR.position.z = -0.47;
+      group.add(shineR);
+
+      // Ears
+      foxEarL = new THREE.Mesh(
+        new THREE.ConeGeometry(0.28, 0.72, 4),
+        orange
+      );
+      foxEarL.rotation.z = 0.9;
+      foxEarL.position.set(0.82, 1.95, 0.42);
+      group.add(foxEarL);
+
+      foxEarR = foxEarL.clone();
+      foxEarR.rotation.z = -0.9;
+      foxEarR.position.z = -0.42;
+      group.add(foxEarR);
+
+      // Ear tips (black)
+      const tipL = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.35, 4), dark);
+      tipL.rotation.z = 0.9;
+      tipL.position.set(0.72, 2.22, 0.42);
+      group.add(tipL);
+      const tipR = tipL.clone();
+      tipR.position.z = -0.42;
+      group.add(tipR);
+
+      // Tail (big bushy)
+      foxTail = new THREE.Group();
+      const tailBase = new THREE.Mesh(
+        new THREE.ConeGeometry(0.35, 1.6, 5),
+        orange
+      );
+      tailBase.rotation.z = -1.9;
+      tailBase.position.set(-1.1, 0.9, 0);
+      foxTail.add(tailBase);
+
+      const tailTip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.48, 6, 5),
+        white
+      );
+      tailTip.position.set(-2.1, 1.35, 0);
+      foxTail.add(tailTip);
+
+      group.add(foxTail);
+
+      // Legs
+      const legMat = new THREE.MeshPhongMaterial({ color: 0x3f2a1f, shininess: 8, flatShading: true });
+      const footMat = new THREE.MeshPhongMaterial({ color: 0x1f2937 });
+
+      function makeLeg(xOff, zOff, isFront) {
+        const leg = new THREE.Group();
+
+        const thigh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.17, 0.13, 0.85, 5),
+          legMat
+        );
+        thigh.position.y = 0.1;
+        leg.add(thigh);
+
+        const foot = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.13, 0.17, 0.35, 5),
+          footMat
+        );
+        foot.position.y = -0.45;
+        leg.add(foot);
+
+        leg.position.set(xOff, 0.35, zOff);
+        leg.userData = { isFront, baseRot: isFront ? -0.4 : 0.35 };
+        return leg;
+      }
+
+      const legFL = makeLeg(0.55, 0.38, true);
+      const legFR = makeLeg(0.55, -0.38, true);
+      const legBL = makeLeg(-0.55, 0.38, false);
+      const legBR = makeLeg(-0.55, -0.38, false);
+
+      group.add(legFL, legFR, legBL, legBR);
+      foxLegs = [legFL, legFR, legBL, legBR];
+
+      // Small grass bits on feet (fun detail)
+      const grassMat = new THREE.MeshPhongMaterial({ color: 0x16a34a });
+      [legFL, legFR, legBL, legBR].forEach(leg => {
+        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 3), grassMat);
+        tuft.position.set(0.02, -0.72, 0);
+        tuft.rotation.z = 0.2;
+        leg.add(tuft);
+      });
+
+      group.userData = { baseY: GROUND_Y };
+      return group;
+    }
+
+    function createGroundChunk(xOffset) {
+      const group = new THREE.Group();
+      group.position.x = xOffset;
+
+      const grassGreen = 0x22c55e;
+      const grassDark = 0x16a34a;
+      const pathColor = 0x86efac;
+
+      // Main ground plane (path + sides)
+      const ground = new THREE.Mesh(
+        new THREE.BoxGeometry(22, 0.9, 9.5),
+        new THREE.MeshPhongMaterial({ color: grassGreen, flatShading: true, shininess: 4 })
+      );
+      ground.position.y = -0.15;
+      ground.receiveShadow = true;
+      group.add(ground);
+
+      // Lighter running path strip
+      const path = new THREE.Mesh(
+        new THREE.BoxGeometry(22, 0.12, 3.6),
+        new THREE.MeshPhongMaterial({ color: pathColor, flatShading: true })
+      );
+      path.position.y = 0.32;
+      group.add(path);
+
+      // Decorative side "dirt" edges
+      const edgeL = new THREE.Mesh(
+        new THREE.BoxGeometry(22, 0.35, 0.9),
+        new THREE.MeshPhongMaterial({ color: 0x854d0e, flatShading: true })
+      );
+      edgeL.position.set(0, 0.1, 4.6);
+      group.add(edgeL);
+
+      const edgeR = edgeL.clone();
+      edgeR.position.z = -4.6;
+      group.add(edgeR);
+
+      // Grass tufts / blades (procedural low poly)
+      const bladeMat = new THREE.MeshPhongMaterial({ color: 0x15803d, flatShading: true });
+      for (let i = 0; i < 26; i++) {
+        const x = rand(-10.5, 10.5);
+        const z = (Math.random() > 0.5 ? 1 : -1) * rand(2.2, 5.1);
+        const h = rand(0.35, 0.85);
+
+        const blade = new THREE.Mesh(
+          new THREE.ConeGeometry(0.06 + Math.random() * 0.04, h, 3),
+          bladeMat
+        );
+        blade.position.set(x, 0.45, z);
+        blade.rotation.y = rand(-0.6, 0.6);
+        blade.rotation.x = rand(-0.15, 0.15);
+        group.add(blade);
+      }
+
+      // Occasional flowers
+      for (let i = 0; i < 5; i++) {
+        if (Math.random() > 0.6) {
+          const fx = rand(-9, 9);
+          const fz = (Math.random() > 0.5 ? 1 : -1) * rand(2.8, 5.3);
+
+          const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.6, 3),
+            new THREE.MeshPhongMaterial({ color: 0x166534 })
+          );
+          stem.position.set(fx, 0.55, fz);
+          group.add(stem);
+
+          const petalColor = Math.random() > 0.5 ? 0xf43f5e : 0xc026ff;
+          const flower = new THREE.Mesh(
+            new THREE.SphereGeometry(0.16, 5, 4),
+            new THREE.MeshPhongMaterial({ color: petalColor, flatShading: true })
+          );
+          flower.position.set(fx, 0.92, fz);
+          flower.scale.set(1, 0.6, 1);
+          group.add(flower);
+
+          // yellow center
+          const center = new THREE.Mesh(
+            new THREE.SphereGeometry(0.07, 4, 4),
+            new THREE.MeshPhongMaterial({ color: 0xfacc15 })
+          );
+          center.position.set(fx, 0.92, fz);
+          group.add(center);
+        }
+      }
+
+      // Small decorative rocks on sides
+      for (let i = 0; i < 3; i++) {
+        const rx = rand(-10, 10);
+        const rz = (Math.random() > 0.5 ? 1 : -1) * (4.8 + Math.random());
+        const rock = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(rand(0.3, 0.55), 0),
+          new THREE.MeshPhongMaterial({ color: 0x64748b, flatShading: true })
+        );
+        rock.position.set(rx, 0.25, rz);
+        rock.rotation.set(rand(-1,1), rand(-2,2), rand(-1,1));
+        group.add(rock);
+      }
+
+      group.userData = { length: 22, recycleX: 22 * 3.6 };
+      return group;
+    }
+
+    function createCoin() {
+      const group = new THREE.Group();
+
+      const gold = new THREE.MeshPhongMaterial({
+        color: 0xfacc15,
+        emissive: 0xeab308,
+        emissiveIntensity: 0.65,
+        shininess: 90,
+        flatShading: false
+      });
+      const goldDark = new THREE.MeshPhongMaterial({
+        color: 0xca8a04,
+        emissive: 0xa16207,
+        emissiveIntensity: 0.3,
+        shininess: 60
+      });
+
+      // Main coin cylinder (thick)
+      const coin = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.42, 0.14, 18),
+        gold
+      );
+      coin.rotation.x = Math.PI / 2;   // face camera-ish in side view
+      coin.castShadow = true;
+      group.add(coin);
+
+      // Raised rim
+      const rim = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.46, 0.46, 0.08, 18),
+        goldDark
+      );
+      rim.rotation.x = Math.PI / 2;
+      group.add(rim);
+
+      // Cute star emboss on face
+      const star = new THREE.Mesh(
+        new THREE.ConeGeometry(0.12, 0.2, 5),
+        goldDark
+      );
+      star.rotation.x = Math.PI;
+      star.position.z = 0.1;
+      group.add(star);
+
+      // Inner highlight ring
+      const highlight = new THREE.Mesh(
+        new THREE.TorusGeometry(0.26, 0.035, 6, 18),
+        new THREE.MeshPhongMaterial({ color: 0xfef08c, emissive: 0xfacc15, emissiveIntensity: 0.9 })
+      );
+      highlight.rotation.x = Math.PI / 2;
+      highlight.position.z = 0.08;
+      group.add(highlight);
+
+      group.userData = {
+        baseY: 1.8 + Math.random() * 1.4,
+        bobPhase: Math.random() * Math.PI * 2,
+        collected: false
+      };
+
+      group.position.y = group.userData.baseY;
+      return group;
+    }
+
+    function createLog() {
+      const group = new THREE.Group();
+
+      const wood = new THREE.MeshPhongMaterial({ color: 0x854d0e, flatShading: true, shininess: 5 });
+      const bark = new THREE.MeshPhongMaterial({ color: 0x5c4033, flatShading: true });
+
+      // Main log body
+      const log = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.38, 0.42, 2.6, 7),
+        wood
+      );
+      log.rotation.z = Math.PI / 2;
+      log.castShadow = true;
+      log.receiveShadow = true;
+      group.add(log);
+
+      // Bark rings / details
+      for (let i = -1; i <= 1; i++) {
+        const ring = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.44, 0.44, 0.12, 7),
+          bark
+        );
+        ring.rotation.z = Math.PI / 2;
+        ring.position.x = i * 0.7;
+        group.add(ring);
+      }
+
+      // End caps (cut wood)
+      const capMat = new THREE.MeshPhongMaterial({ color: 0xa16207, flatShading: true });
+      const capL = new THREE.Mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.08, 7), capMat);
+      capL.rotation.z = Math.PI / 2;
+      capL.position.x = -1.32;
+      group.add(capL);
+
+      const capR = capL.clone();
+      capR.position.x = 1.32;
+      group.add(capR);
+
+      group.userData = { type: 'log', height: 1.1 };
+      return group;
+    }
+
+    function createRock() {
+      const group = new THREE.Group();
+
+      const stone = new THREE.MeshPhongMaterial({ color: 0x64748b, flatShading: true, shininess: 6 });
+      const stoneDark = new THREE.MeshPhongMaterial({ color: 0x475569, flatShading: true });
+
+      // Irregular low-poly rock using multiple scaled dodeca / spheres
+      const core = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.65, 0),
+        stone
+      );
+      core.castShadow = true;
+      group.add(core);
+
+      const bump1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42, 0), stoneDark);
+      bump1.position.set(0.35, 0.1, 0.3);
+      group.add(bump1);
+
+      const bump2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.38, 0), stone);
+      bump2.position.set(-0.4, 0.25, -0.2);
+      group.add(bump2);
+
+      const bump3 = new THREE.Mesh(new THREE.SphereGeometry(0.32, 5, 5), stoneDark);
+      bump3.position.set(0.2, -0.15, -0.45);
+      group.add(bump3);
+
+      group.scale.set(0.95, 0.85, 1.05);
+      group.userData = { type: 'rock', height: 0.95 };
+      return group;
+    }
+
+    function createBranch() {
+      const group = new THREE.Group();
+
+      const wood = new THREE.MeshPhongMaterial({ color: 0x713f12, flatShading: true, shininess: 4 });
+      const leaf = new THREE.MeshPhongMaterial({ color: 0x166534, flatShading: true });
+
+      // Main angled branch
+      const main = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 2.8, 5), wood);
+      main.rotation.z = -0.6;
+      main.position.set(0, 1.6, 0);
+      group.add(main);
+
+      // Smaller branch fork
+      const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.6, 5), wood);
+      fork.rotation.z = 0.9;
+      fork.position.set(-0.7, 2.2, 0);
+      group.add(fork);
+
+      // Leaves (low poly clusters)
+      for (let i = 0; i < 5; i++) {
+        const l = new THREE.Mesh(
+          new THREE.ConeGeometry(0.38, 0.65, 4),
+          leaf
+        );
+        l.position.set(
+          -0.9 + rand(-0.3, 0.6),
+          1.9 + i * 0.22,
+          rand(-0.35, 0.35)
+        );
+        l.rotation.set(rand(-0.6, 0.6), rand(-1, 1), rand(-0.4, 0.4));
+        group.add(l);
+      }
+
+      group.userData = { type: 'branch', height: 2.6, requiresSlide: true };
+      return group;
+    }
+
+    function createPuddle() {
+      const group = new THREE.Group();
+
+      // Shallow water surface
+      const water = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.35, 1.5, 0.08, 18),
+        new THREE.MeshPhongMaterial({
+          color: 0x0e7490,
+          shininess: 90,
+          transparent: true,
+          opacity: 0.65,
+          flatShading: false
+        })
+      );
+      water.rotation.x = Math.PI * 0.5;
+      water.position.y = 0.2;
+      group.add(water);
+
+      // Darker wet edge
+      const edge = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.55, 1.55, 0.1, 18),
+        new THREE.MeshPhongMaterial({ color: 0x155e75, flatShading: true })
+      );
+      edge.rotation.x = Math.PI * 0.5;
+      edge.position.y = 0.12;
+      group.add(edge);
+
+      // Subtle ripple rings (animated later)
+      for (let i = 0; i < 2; i++) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.7 + i * 0.35, 0.035, 6, 18),
+          new THREE.MeshPhongMaterial({
+            color: 0x67e8f9,
+            transparent: true,
+            opacity: 0.35
+          })
+        );
+        ring.rotation.x = Math.PI * 0.5;
+        ring.position.y = 0.28;
+        ring.userData = { ripple: true, speed: 1.6 + i * 0.6, baseScale: 1 + i * 0.1 };
+        group.add(ring);
+      }
+
+      group.userData = { type: 'puddle', height: 0.35 };
+      return group;
+    }
+
+    // Background parallax elements
+    function createFarMountain(x, z, scale = 1) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshPhongMaterial({ color: 0x1e3a8a, flatShading: true, shininess: 0 });
+
+      const m1 = new THREE.Mesh(new THREE.ConeGeometry(3.8 * scale, 4.2 * scale, 4), mat);
+      m1.position.set(0, 2.1 * scale, 0);
+      g.add(m1);
+
+      const m2 = m1.clone();
+      m2.scale.set(0.8, 0.9, 0.7);
+      m2.position.set(2.6 * scale, 1.6 * scale, -0.8);
+      g.add(m2);
+
+      const m3 = m1.clone();
+      m3.scale.set(0.65, 0.75, 0.6);
+      m3.position.set(-2.8 * scale, 1.35 * scale, 1.1);
+      g.add(m3);
+
+      g.position.set(x, -0.4, z);
+      return g;
+    }
+
+    function createCloud(x, z, scale = 1) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshPhongMaterial({ color: 0xf8fafc, flatShading: true, transparent: true, opacity: 0.9 });
+
+      const puffs = [
+        [0, 0, 0.9], [0.9, 0.1, 0.75], [-0.85, 0.05, 0.7],
+        [0.3, 0.55, 0.6], [-0.35, 0.48, 0.55]
+      ];
+      puffs.forEach(([px, py, ps]) => {
+        const p = new THREE.Mesh(new THREE.SphereGeometry(0.95 * ps * scale, 6, 5), mat);
+        p.position.set(px * scale, py * scale, 0);
+        g.add(p);
+      });
+
+      g.position.set(x, 7 + rand(-1.5, 1.8), z);
+      g.userData = { speedFactor: 0.18 + Math.random() * 0.1 };
+      return g;
+    }
+
+    function createMidHill(x, z, scale = 1) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshPhongMaterial({ color: 0x16a34a, flatShading: true });
+
+      const h = new THREE.Mesh(new THREE.ConeGeometry(4.2 * scale, 3.8 * scale, 5), mat);
+      h.position.y = 1.6 * scale;
+      g.add(h);
+
+      // tree on hill
+      if (Math.random() > 0.35) {
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.15, 0.22, 1.2, 4),
+          new THREE.MeshPhongMaterial({ color: 0x713f12 })
+        );
+        trunk.position.set(rand(-1.2, 1.2) * scale, 2.6 * scale, 0);
+        g.add(trunk);
+
+        const foliage = new THREE.Mesh(
+          new THREE.ConeGeometry(1.1 * scale, 2.2, 5),
+          new THREE.MeshPhongMaterial({ color: 0x15803d, flatShading: true })
+        );
+        foliage.position.set(trunk.position.x, 3.7 * scale, 0);
+        g.add(foliage);
+      }
+
+      g.position.set(x, 0.1, z);
+      g.userData = { speedFactor: 0.55 };
+      return g;
+    }
+
+    function createNearTree(x, z) {
+      const g = new THREE.Group();
+
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.26, 1.8, 5),
+        new THREE.MeshPhongMaterial({ color: 0x713f12, flatShading: true })
+      );
+      trunk.position.y = 0.9;
+      g.add(trunk);
+
+      // Layered foliage for cute low-poly tree
+      const leafMat = new THREE.MeshPhongMaterial({ color: 0x166534, flatShading: true });
+      const f1 = new THREE.Mesh(new THREE.ConeGeometry(1.35, 2.0, 5), leafMat);
+      f1.position.y = 2.1;
+      g.add(f1);
+
+      const f2 = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.5, 5), leafMat);
+      f2.position.y = 3.0;
+      g.add(f2);
+
+      const f3 = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.1, 5), leafMat);
+      f3.position.y = 3.7;
+      g.add(f3);
+
+      g.position.set(x, 0.3, z);
+      g.userData = { speedFactor: 1.05 };
+      return g;
+    }
+
+    // ==================== PARTICLES ====================
+    function emitCoinParticles(x, y, z, count = 11) {
+      const gold = 0xfacc15;
+      for (let i = 0; i < count; i++) {
+        const p = new THREE.Mesh(
+          new THREE.SphereGeometry(rand(0.06, 0.11), 5, 4),
+          new THREE.MeshPhongMaterial({
+            color: gold,
+            emissive: 0xeab308,
+            emissiveIntensity: 0.8,
+            transparent: true,
+            opacity: 0.95
+          })
+        );
+        p.position.set(x + rand(-0.3, 0.3), y + rand(-0.2, 0.4), z + rand(-0.3, 0.3));
+
+        p.userData = {
+          vx: rand(-3.5, 3.5),
+          vy: rand(2.5, 7.5),
+          vz: rand(-1.8, 1.8),
+          life: 0.7 + Math.random() * 0.6,
+          gravity: -14 - Math.random() * 6
+        };
+        scene.add(p);
+        particles.push(p);
+      }
+    }
+
+    function emitDust(x, y, z, count = 5) {
+      const dustMat = new THREE.MeshPhongMaterial({
+        color: 0x854d0e,
+        transparent: true,
+        opacity: 0.6,
+        flatShading: true
+      });
+      for (let i = 0; i < count; i++) {
+        const p = new THREE.Mesh(
+          new THREE.SphereGeometry(rand(0.05, 0.12), 4, 3),
+          dustMat
+        );
+        p.position.set(x + rand(-0.2, 0.2), y + 0.1, z + rand(-0.6, 0.6));
+        p.userData = {
+          vx: rand(-1.5, -4.5),
+          vy: rand(0.8, 3.2),
+          vz: rand(-1.2, 1.2),
+          life: 0.35 + Math.random() * 0.35,
+          gravity: -8
+        };
+        scene.add(p);
+        particles.push(p);
+      }
+    }
+
+    // ==================== WORLD SETUP ====================
+    function setupScene() {
+      scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0xbae6fd, 38, 82);
+
+      camera = new THREE.PerspectiveCamera(52, GAME_WIDTH / GAME_HEIGHT, 0.5, 120);
+      camera.position.set(FOX_X - 0.4, 5.6, 11.5);
+      camera.lookAt(FOX_X + 5.5, 2.8, 0);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('game-canvas'),
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance"
+      });
+      renderer.setSize(GAME_WIDTH, GAME_HEIGHT);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      // Bright cartoon lighting
+      const hemi = new THREE.HemisphereLight(0xbae6fd, 0x166534, 0.95);
+      scene.add(hemi);
+
+      const sun = new THREE.DirectionalLight(0xfffbeb, 0.95);
+      sun.position.set(12, 26, -18);
+      sun.castShadow = true;
+      sun.shadow.mapSize.width = 1024;
+      sun.shadow.mapSize.height = 1024;
+      sun.shadow.camera.near = 1;
+      sun.shadow.camera.far = 80;
+      sun.shadow.camera.left = -22;
+      sun.shadow.camera.right = 28;
+      sun.shadow.camera.top = 18;
+      sun.shadow.camera.bottom = -10;
+      scene.add(sun);
+
+      // Very subtle fill
+      const fill = new THREE.DirectionalLight(0x67e8f9, 0.35);
+      fill.position.set(-18, 9, 22);
+      scene.add(fill);
+
+      clock = new THREE.Clock();
+    }
+
+    function buildWorld() {
+      // Clear previous
+      while (scene.children.length > 0) scene.remove(scene.children[0]);
+
+      // Re-add lights
+      const hemi = new THREE.HemisphereLight(0xbae6fd, 0x166534, 0.95);
+      scene.add(hemi);
+      const sun = new THREE.DirectionalLight(0xfffbeb, 0.95);
+      sun.position.set(12, 26, -18);
+      sun.castShadow = true;
+      scene.add(sun);
+
+      // Ground chunks (recycled)
+      groundChunks = [];
+      for (let i = 0; i < 5; i++) {
+        const chunk = createGroundChunk(i * 21.5 - 12);
+        scene.add(chunk);
+        groundChunks.push(chunk);
+      }
+
+      // Fox
+      fox = createFox();
+      scene.add(fox);
+
+      // Background layers
+      bgLayers.far = [];
+      bgLayers.mid = [];
+      bgLayers.near = [];
+
+      // Far mountains (slowest)
+      for (let i = -1; i < 4; i++) {
+        const m = createFarMountain(i * 18 - 4, -26, 1.1 + (i % 2) * 0.2);
+        scene.add(m);
+        bgLayers.far.push(m);
+      }
+
+      // Clouds
+      for (let i = 0; i < 6; i++) {
+        const c = createCloud(-12 + i * 11, -19 - Math.random() * 5, 0.8 + Math.random() * 0.6);
+        scene.add(c);
+        bgLayers.far.push(c);
+      }
+
+      // Mid hills + trees
+      for (let i = -1; i < 5; i++) {
+        const h = createMidHill(i * 15 - 6, -14, 0.85 + Math.random() * 0.3);
+        scene.add(h);
+        bgLayers.mid.push(h);
+      }
+
+      // Near trees & bushes (fastest)
+      for (let i = 0; i < 7; i++) {
+        const t = createNearTree(i * 9.5 - 18, -8.5 + (i % 3) * 1.6);
+        scene.add(t);
+        bgLayers.near.push(t);
+      }
+
+      // Initial coins & obstacles
+      obstacles = [];
+      coins = [];
+      particles = [];
+
+      // Seed a few coins and one obstacle
+      for (let i = 0; i < 3; i++) {
+        const c = createCoin();
+        c.position.x = 9 + i * 5;
+        c.position.y = 2.4 + Math.sin(i) * 0.8;
+        scene.add(c);
+        coins.push(c);
+      }
+
+      const firstLog = createLog();
+      firstLog.position.x = 17;
+      firstLog.position.y = GROUND_Y + 0.1;
+      scene.add(firstLog);
+      obstacles.push(firstLog);
+    }
+
+    // ==================== SPAWN LOGIC ====================
+    function spawnObstacleOrCoin() {
+      const spawnX = 19 + rand(0, 3);
+
+      const r = Math.random();
+
+      if (r < 0.38) {
+        // Single coin or small arc of coins
+        const count = randInt(1, 3);
+        for (let i = 0; i < count; i++) {
+          const c = createCoin();
+          c.position.x = spawnX + i * 1.1;
+          c.position.y = 2.1 + Math.sin(i * 1.8) * 1.3 + (count > 1 ? 0.3 : 0);
+          scene.add(c);
+          coins.push(c);
+        }
+      } else if (r < 0.62) {
+        // Ground obstacle: log or rock or puddle
+        const typeRoll = Math.random();
+        let obs;
+        if (typeRoll < 0.45) obs = createLog();
+        else if (typeRoll < 0.78) obs = createRock();
+        else obs = createPuddle();
+
+        obs.position.x = spawnX;
+        obs.position.y = GROUND_Y + (obs.userData.type === 'puddle' ? 0.05 : 0.08);
+        scene.add(obs);
+        obstacles.push(obs);
+      } else if (r < 0.88) {
+        // Hanging branch (requires slide)
+        const br = createBranch();
+        br.position.x = spawnX + 0.3;
+        br.position.y = GROUND_Y + 0.4;
+        scene.add(br);
+        obstacles.push(br);
+      } else {
+        // Mixed pattern: low obstacle + floating coin
+        const obs = Math.random() > 0.5 ? createLog() : createRock();
+        obs.position.x = spawnX;
+        obs.position.y = GROUND_Y + 0.08;
+        scene.add(obs);
+        obstacles.push(obs);
+
+        const c = createCoin();
+        c.position.x = spawnX + 2.8;
+        c.position.y = 3.1;
+        scene.add(c);
+        coins.push(c);
+      }
+
+      // Occasionally spawn a second thing a bit further
+      if (Math.random() > 0.72) {
+        setTimeout(() => {
+          if (gameState !== 'playing') return;
+          const c2 = createCoin();
+          c2.position.x = spawnX + 5.5 + rand(0, 2);
+          c2.position.y = 1.9 + Math.random() * 1.6;
+          scene.add(c2);
+          coins.push(c2);
+        }, 180);
+      }
+    }
+
+    function updateSpawns() {
+      // Spawn based on distance traveled
+      while (distance > nextSpawnDistance) {
+        spawnObstacleOrCoin();
+        nextSpawnDistance += rand(3.8, 6.4);
+      }
+
+      // Clean up far left objects
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        if (obstacles[i].position.x < FOX_X - 14) {
+          scene.remove(obstacles[i]);
+          obstacles.splice(i, 1);
+        }
+      }
+      for (let i = coins.length - 1; i >= 0; i--) {
+        if (coins[i].position.x < FOX_X - 13) {
+          scene.remove(coins[i]);
+          coins.splice(i, 1);
+        }
+      }
+    }
+
+    // ==================== FOX ANIMATION & PHYSICS ====================
+    function updateFox(delta) {
+      if (!fox) return;
+
+      // Running cycle
+      runCycle += delta * (speed * 1.65);
+
+      const phase = runCycle * 1.8;
+
+      // Leg animation (opposite pairs)
+      foxLegs.forEach((leg, idx) => {
+        const isFront = leg.userData.isFront;
+        let swing = Math.sin(phase + (idx % 2 === 0 ? 0 : Math.PI)) * (isFront ? 0.95 : 0.72);
+
+        if (isJumping) {
+          swing *= 0.3;
+          leg.rotation.x = lerp(leg.rotation.x, isFront ? -0.9 : 0.6, 0.12);
+        } else if (isSliding) {
+          leg.rotation.x = lerp(leg.rotation.x, isFront ? 1.1 : 0.75, 0.2);
+        } else {
+          leg.rotation.x = lerp(leg.rotation.x, swing * (isFront ? 1 : 0.85) + leg.userData.baseRot, 0.35);
+        }
+      });
+
+      // Tail wag
+      if (foxTail) {
+        const wag = Math.sin(phase * 0.7) * (isJumping ? 0.2 : 0.65);
+        foxTail.rotation.z = lerp(foxTail.rotation.z || 0, -0.2 + wag * 0.9, 0.18);
+        foxTail.rotation.y = Math.sin(phase * 0.4) * 0.12;
+      }
+
+      // Head bob + ear twitch
+      if (foxHead) {
+        const bob = isJumping ? 0 : Math.sin(phase * 1.4) * 0.035;
+        foxHead.position.y = 1.35 + bob;
+        foxHead.rotation.z = Math.sin(phase * 0.6) * 0.025;
+      }
+      if (foxEarL && foxEarR) {
+        const earWag = Math.sin(phase * 1.1) * 0.08;
+        foxEarL.rotation.z = 0.9 + earWag;
+        foxEarR.rotation.z = -0.9 - earWag * 0.7;
+      }
+
+      // Jump physics
+      if (isJumping || foxY > GROUND_Y + 0.01) {
+        foxVY += GRAVITY * delta;
+        foxY += foxVY * delta;
+
+        if (foxY <= GROUND_Y) {
+          foxY = GROUND_Y;
+          foxVY = 0;
+          isJumping = false;
+
+          // Landing dust + squash
+          emitDust(FOX_X - 0.3, GROUND_Y + 0.15, 0, 4);
+          if (fox) {
+            fox.scale.set(1.18, 0.78, 1.05);
+            setTimeout(() => {
+              if (fox && gameState === 'playing') fox.scale.set(1, 1, 1);
+            }, 110);
+          }
+        }
+      }
+
+      // Apply vertical
+      fox.position.y = foxY;
+
+      // Subtle forward lean when running fast
+      const lean = isJumping ? -0.05 : (speed - baseSpeed) * 0.012;
+      fox.rotation.z = lerp(fox.rotation.z || 0, lean, 0.1);
+
+      // Squash and stretch on jump
+      if (isJumping && foxVY > 2) {
+        const t = clamp(foxVY / JUMP_VELOCITY, 0, 1);
+        fox.scale.set(0.88 + t * 0.12, 1.2 - t * 0.15, 0.95);
+      } else if (!isSliding) {
+        fox.scale.lerp(new THREE.Vector3(1, 1, 1), 0.2);
+      }
+
+      // Sliding pose
+      if (isSliding) {
+        fox.position.y = GROUND_Y + 0.35;
+        fox.rotation.z = lerp(fox.rotation.z, 0.08, 0.2);
+        fox.scale.set(1.25, 0.6, 1.05);
+      }
+    }
+
+    function jump() {
+      if (gameState !== 'playing' || isJumping || isSliding) return;
+      isJumping = true;
+      foxVY = JUMP_VELOCITY;
+      foxY = GROUND_Y + 0.05;
+
+      // Jump squash
+      if (fox) fox.scale.set(0.82, 1.35, 0.9);
+      setTimeout(() => {
+        if (fox && isJumping && gameState === 'playing') fox.scale.set(0.95, 1.05, 1);
+      }, 90);
+    }
+
+    function startSlide() {
+      if (gameState !== 'playing' || isJumping) return;
+      isSliding = true;
+      slideUntil = Date.now() + SLIDE_DURATION;
+    }
+
+    function updateSlide() {
+      if (isSliding && Date.now() > slideUntil) {
+        isSliding = false;
+        if (fox) fox.scale.set(1, 1, 1);
+      }
+    }
+
+    // ==================== UPDATE WORLD ====================
+    function updateWorld(delta) {
+      const scroll = speed * delta;
+
+      // Move ground chunks
+      groundChunks.forEach(chunk => {
+        chunk.position.x -= scroll;
+        if (chunk.position.x < FOX_X - 26) {
+          // recycle far right
+          const maxX = Math.max(...groundChunks.map(c => c.position.x));
+          chunk.position.x = maxX + 21.3;
+        }
+      });
+
+      // Move obstacles
+      obstacles.forEach(obs => {
+        obs.position.x -= scroll;
+
+        // Gentle bobbing / rotation for variety
+        if (obs.userData.type === 'log') {
+          obs.rotation.z = Math.sin(Date.now() / 380 + obs.position.x) * 0.015;
+        }
+        if (obs.userData.type === 'puddle') {
+          obs.children.forEach(child => {
+            if (child.userData && child.userData.ripple) {
+              const t = (Date.now() / 1000) * child.userData.speed;
+              child.scale.setScalar(child.userData.baseScale + Math.sin(t) * 0.08);
+              child.material.opacity = 0.28 + Math.sin(t * 1.6) * 0.12;
+            }
+          });
+        }
+      });
+
+      // Move + bob coins
+      coins.forEach(coin => {
+        coin.position.x -= scroll * 1.0;
+
+        const ud = coin.userData;
+        if (ud) {
+          coin.position.y = ud.baseY + Math.sin(Date.now() / 260 + ud.bobPhase) * 0.22;
+          coin.rotation.y = (Date.now() / 380) % (Math.PI * 2);
+          coin.rotation.x = Math.sin(Date.now() / 520) * 0.2;
+        }
+      });
+
+      // Parallax backgrounds
+      const farSpeed = scroll * 0.22;
+      const midSpeed = scroll * 0.48;
+      const nearSpeed = scroll * 0.96;
+
+      bgLayers.far.forEach(obj => {
+        obj.position.x -= farSpeed * (obj.userData.speedFactor || 1);
+        if (obj.position.x < FOX_X - 42) obj.position.x += 82;
+      });
+
+      bgLayers.mid.forEach(obj => {
+        obj.position.x -= midSpeed * (obj.userData.speedFactor || 1);
+        if (obj.position.x < FOX_X - 32) obj.position.x += 68;
+      });
+
+      bgLayers.near.forEach(obj => {
+        obj.position.x -= nearSpeed * (obj.userData.speedFactor || 1);
+        if (obj.position.x < FOX_X - 18) obj.position.x += 52;
+      });
+
+      // Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        const ud = p.userData;
+        if (!ud) { scene.remove(p); particles.splice(i, 1); continue; }
+
+        p.position.x += ud.vx * delta;
+        p.position.y += ud.vy * delta;
+        p.position.z += ud.vz * delta;
+        ud.vy += (ud.gravity || -12) * delta;
+
+        ud.life -= delta;
+        if (p.material) {
+          p.material.opacity = Math.max(0, ud.life * 1.3);
+        }
+        p.scale.setScalar(Math.max(0.2, ud.life * 1.6));
+
+        if (ud.life <= 0) {
+          scene.remove(p);
+          particles.splice(i, 1);
+        }
+      }
+
+      // Running dust trail
+      if (!isJumping && !isSliding && Math.random() < 0.75) {
+        emitDust(FOX_X - 1.1, GROUND_Y + 0.05, rand(-0.4, 0.4), 1);
+      }
+
+      // Scroll distance & speed ramp
+      distance += scroll * 1.8;
+      const targetSpeed = baseSpeed + Math.min(7.5, distance / 520);
+      speed = lerp(speed, targetSpeed, 0.018);
+
+      updateSpawns();
+    }
+
+    // ==================== COLLISIONS ====================
+    function checkCollisions() {
+      if (gameState !== 'playing') return;
+
+      const foxB = getFoxBounds();
+
+      // Coins
+      for (let i = coins.length - 1; i >= 0; i--) {
+        const coin = coins[i];
+        const r = 0.55;
+        const coinB = {
+          minX: coin.position.x - r,
+          maxX: coin.position.x + r,
+          minY: coin.position.y - r,
+          maxY: coin.position.y + r
+        };
+
+        if (intersects(foxB, coinB)) {
+          // collect!
+          scene.remove(coin);
+          coins.splice(i, 1);
+          coinCount += 1;
+
+          emitCoinParticles(coin.position.x, coin.position.y, coin.position.z);
+
+          // tiny score pop
+          const pop = document.createElement('div');
+          pop.textContent = '+10';
+          pop.style.cssText = `position:absolute;left:${520 + Math.random()*40}px;top:${220 + Math.random()*30}px;color:#facc15;font-size:15px;font-weight:700;pointer-events:none;text-shadow:0 1px 2px #0008`;
+          document.getElementById('game-screen').appendChild(pop);
+          setTimeout(() => pop.remove(), 650);
+        }
+      }
+
+      // Obstacles
+      for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        const ud = obs.userData || {};
+        const w = (ud.type === 'branch') ? 1.8 : 1.6;
+        const h = ud.height || 1.0;
+
+        const obsB = {
+          minX: obs.position.x - w * 0.5,
+          maxX: obs.position.x + w * 0.5,
+          minY: obs.position.y,
+          maxY: obs.position.y + h
+        };
+
+        if (intersects(foxB, obsB)) {
+          endGame();
+          return;
+        }
+      }
+    }
+
+    // ==================== MAIN LOOP ====================
+    function updateUI() {
+      const distEl = document.getElementById('distance');
+      const coinEl = document.getElementById('coins');
+      const speedEl = document.getElementById('speed-value');
+
+      if (distEl) distEl.textContent = Math.floor(distance).toString().padStart(4, '0');
+      if (coinEl) coinEl.textContent = coinCount.toString().padStart(3, '0');
+      if (speedEl) speedEl.textContent = speed.toFixed(1);
+    }
+
+    function gameLoop() {
+      if (gameState !== 'playing') return;
+
+      const delta = Math.min(clock.getDelta(), 0.05);
+
+      updateSlide();
+      updateFox(delta);
+      updateWorld(delta);
+      checkCollisions();
+      updateUI();
+
+      // Gentle camera follow on Y for big jumps
+      const targetCamY = 5.6 + Math.max(0, (foxY - GROUND_Y - 1.2) * 0.35);
+      camera.position.y = lerp(camera.position.y, targetCamY, 0.08);
+
+      renderer.render(scene, camera);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      const startScreen = document.getElementById('start-screen');
+      const gameScreen = document.getElementById('game-screen');
+      const gameOver = document.getElementById('game-over');
+
+      startScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      gameOver.classList.add('hidden');
+
+      // Reset state
+      distance = 0;
+      coinCount = 0;
+      speed = baseSpeed;
+      isJumping = false;
+      isSliding = false;
+      foxY = GROUND_Y;
+      foxVY = 0;
+      runCycle = 0;
+      nextSpawnDistance = 11;
+      lastSpawnX = 18;
+      obstacles = [];
+      coins = [];
+      particles.forEach(p => scene.remove(p));
+      particles = [];
+
+      // Rebuild clean world
+      buildWorld();
+
+      // Reset fox pose
+      if (fox) {
+        fox.position.set(FOX_X, GROUND_Y, 0);
+        fox.rotation.set(0, 0, 0);
+        fox.scale.set(1, 1, 1);
+      }
+
+      // Reset camera
+      camera.position.set(FOX_X - 0.4, 5.6, 11.5);
+      camera.lookAt(FOX_X + 5.5, 2.8, 0);
+
+      gameState = 'playing';
+
+      // Kick off the loop
+      clock.start();
+      updateUI();
+      requestAnimationFrame(gameLoop);
+
+      // Small starting boost of coins for fun
+      setTimeout(() => {
+        if (gameState === 'playing' && coins.length < 2) {
+          const c = createCoin();
+          c.position.x = 13;
+          c.position.y = 2.8;
+          scene.add(c);
+          coins.push(c);
+        }
+      }, 820);
+    }
+
+    function endGame() {
+      gameState = 'gameover';
+
+      const finalDist = Math.floor(distance);
+      const totalScore = finalDist + coinCount * 12;
+
+      // Update UI values
+      document.getElementById('final-distance').textContent = finalDist.toString().padStart(4, '0');
+      document.getElementById('final-coins').textContent = coinCount.toString().padStart(3, '0');
+      document.getElementById('final-score').textContent = totalScore.toLocaleString();
+
+      const newHigh = document.getElementById('new-highscore');
+      newHigh.classList.add('hidden');
+
+      if (totalScore > highScore) {
+        highScore = totalScore;
+        localStorage.setItem('foxDashHighScore', highScore);
+        newHigh.classList.remove('hidden');
+      }
+
+      // Show modal
+      document.getElementById('game-screen').classList.remove('hidden');
+      document.getElementById('game-over').classList.remove('hidden');
+
+      // Freeze fox in sad pose
+      if (fox) {
+        fox.rotation.z = -0.25;
+        fox.scale.set(1.05, 0.8, 1);
+      }
+    }
+
+    function restartGame() {
+      document.getElementById('game-over').classList.add('hidden');
+      startGame();
+    }
+
+    function goToMenu() {
+      document.getElementById('game-over').classList.add('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.remove('hidden');
+      gameState = 'start';
+
+      // Clean up three objects
+      if (renderer) {
+        // keep renderer + scene for potential restart
+      }
+    }
+
+    function togglePause() {
+      if (gameState === 'playing') {
+        gameState = 'paused';
+        document.getElementById('pause-btn').innerHTML = '<i class="fa-solid fa-play text-lg"></i>';
+      } else if (gameState === 'paused') {
+        gameState = 'playing';
+        document.getElementById('pause-btn').innerHTML = '<i class="fa-solid fa-pause text-lg"></i>';
+        clock.start();
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // ==================== INPUT ====================
+    function setupInput() {
+      // Keyboard
+      window.addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+          e.preventDefault();
+          if (gameState === 'playing') jump();
+          else if (gameState === 'start') startGame();
+          else if (gameState === 'gameover') restartGame();
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          if (gameState === 'playing') startSlide();
+        }
+        if (e.code === 'KeyP' && (gameState === 'playing' || gameState === 'paused')) {
+          togglePause();
+        }
+        if (e.code === 'KeyR' && gameState === 'gameover') {
+          restartGame();
+        }
+        if (e.code === 'Escape' && gameState === 'playing') {
+          togglePause();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keys[e.code] = false;
+        if ((e.code === 'ArrowDown' || e.code === 'KeyS') && isSliding) {
+          isSliding = false;
+          if (fox) fox.scale.set(1, 1, 1);
+        }
+      });
+
+      // Mouse / click on canvas = jump
+      const canvas = document.getElementById('game-canvas');
+      canvas.addEventListener('pointerdown', (e) => {
+        if (gameState === 'playing') {
+          // Distinguish tap vs swipe start
+          touchStartY = e.clientY;
+          jump();
+        } else if (gameState === 'start') {
+          startGame();
+        } else if (gameState === 'gameover') {
+          restartGame();
+        }
+      });
+
+      // Hold for slide (desktop)
+      canvas.addEventListener('pointerdown', (e) => {
+        if (gameState !== 'playing') return;
+        // If they hold down a bit, slide
+        const startY = e.clientY;
+        const holdTimer = setTimeout(() => {
+          if (gameState === 'playing' && touchStartY !== null) {
+            startSlide();
+          }
+        }, 160);
+
+        const upHandler = () => {
+          clearTimeout(holdTimer);
+          window.removeEventListener('pointerup', upHandler);
+          touchStartY = null;
+        };
+        window.addEventListener('pointerup', upHandler, { once: true });
+      });
+
+      // Swipe detection (mobile + desktop)
+      canvas.addEventListener('pointermove', (e) => {
+        if (touchStartY === null || gameState !== 'playing') return;
+        const dy = e.clientY - touchStartY;
+        if (dy > 38) {
+          startSlide();
+          touchStartY = null;
+        }
+      });
+
+      // Touch specific
+      canvas.addEventListener('touchstart', (e) => {
+        if (gameState === 'playing') {
+          touchStartY = e.touches[0].clientY;
+          jump();
+        } else if (gameState === 'start') {
+          e.preventDefault();
+          startGame();
+        } else if (gameState === 'gameover') {
+          e.preventDefault();
+          restartGame();
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', (e) => {
+        if (touchStartY !== null && gameState === 'playing') {
+          // quick swipe down detection
+          // (the move listener above catches most)
+        }
+        touchStartY = null;
+      });
+
+      // Buttons
+      document.getElementById('start-btn').addEventListener('click', startGame);
+      document.getElementById('restart-btn').addEventListener('click', restartGame);
+      document.getElementById('menu-btn').addEventListener('click', goToMenu);
+
+      const pauseBtn = document.getElementById('pause-btn');
+      pauseBtn.addEventListener('click', () => {
+        if (gameState === 'playing' || gameState === 'paused') togglePause();
+      });
+
+      // Window resize (keeps canvas crisp)
+      window.addEventListener('resize', () => {
+        // We keep fixed internal resolution for consistent gameplay feel
+        // but can scale the canvas css if wanted. For now fixed.
+      });
+
+      // Prevent space from scrolling page
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && document.activeElement.tagName === 'BUTTON') {
+          e.preventDefault();
+        }
+      });
+    }
+
+    // ==================== BOOT ====================
+    function init() {
+      initTailwind();
+
+      setupScene();
+      buildWorld();
+
+      // Show a few initial coins in the start screen preview (subtle)
+      // (they are already in the scene but start screen hides the game view)
+
+      setupInput();
+
+      // Keyboard hint on start screen
+      const startScreen = document.getElementById('start-screen');
+      startScreen.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') startGame();
+      });
+
+      // Make canvas focusable for a11y
+      const canvas = document.getElementById('game-canvas');
+      canvas.setAttribute('tabindex', '0');
+
+      // Easter egg: click the title image on start to spawn a coin particle demo (visual only)
+      const hero = startScreen.querySelector('img');
+      if (hero) {
+        hero.style.cursor = 'pointer';
+        hero.addEventListener('click', () => {
+          // tiny visual treat
+          hero.style.transitionDuration = '80ms';
+          hero.style.transform = 'scale(0.985)';
+          setTimeout(() => {
+            hero.style.transform = 'scale(1)';
+          }, 120);
+        });
+      }
+
+      // Expose a tiny debug hook (optional)
+      window.FOX_DASH_DEBUG = { getState: () => ({ speed, distance, coinCount, gameState }) };
+
+      console.log('%c[FOX DASH] 3D cartoon runner ready. Press SPACE or tap START.', 'color:#64748b');
+    }
+
+    // Boot the game
+    init();
+  </script>
+</body>
+</html>
