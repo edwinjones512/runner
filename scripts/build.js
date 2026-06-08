@@ -29,21 +29,26 @@ if (!fs.existsSync(DIST)) {
 // Copy the single production HTML file
 fs.copyFileSync(SOURCE, path.join(DIST, 'index.html'));
 
-// Copy assets (images, etc.) if they exist
-const assetsDir = path.join(ROOT, 'public', 'images');
-const distAssetsDir = path.join(DIST, 'images');
-if (fs.existsSync(assetsDir)) {
-  if (!fs.existsSync(distAssetsDir)) {
-    fs.mkdirSync(distAssetsDir, { recursive: true });
+// Copy assets (images + sounds) if they exist
+function copyDir(srcDirName) {
+  const src = path.join(ROOT, 'public', srcDirName);
+  const dest = path.join(DIST, srcDirName);
+  if (fs.existsSync(src)) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    const files = fs.readdirSync(src);
+    files.forEach(file => {
+      fs.copyFileSync(
+        path.join(src, file),
+        path.join(dest, file)
+      );
+    });
   }
-  const files = fs.readdirSync(assetsDir);
-  files.forEach(file => {
-    fs.copyFileSync(
-      path.join(assetsDir, file),
-      path.join(distAssetsDir, file)
-    );
-  });
 }
+
+copyDir('images');
+copyDir('sounds');
 
 // Optional: create a simple _redirects for SPA-friendly hosts
 const redirects = path.join(DIST, '_redirects');
